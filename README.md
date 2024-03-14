@@ -23,4 +23,4 @@ Screenshot from PulseView:
 
 Copy the paxton folder and its contents to  
 `~/.local/share/libsigrokdecode/decoders` (Linux) or  
-`%ProgramData%\libsigrokdecode\decoders` (Windows).  
+`C:\Program Files\sigrok\PulseView\share\libsigrokdecode\decoders` (Windows).  
