@@ -50,7 +50,7 @@ class Decoder(srd.Decoder):
         ('parity', 'Parity'),          # 4
         ('lrc', 'LRC'),                # 5
         ('begin', 'Begin'),            # 6
-        ('seperator', 'Seperator'),    # 7
+        ('separator', 'Separator'),    # 7
         ('end', 'End'),                # 8
     )
     annotation_rows = (
@@ -58,6 +58,11 @@ class Decoder(srd.Decoder):
         ('digits', 'Digits', (1, 2, 5, 6, 7, 8,)),
         ('cards', 'Card', (3,)),
         ('error', 'Error', (4,)),
+    )
+
+    options = (
+        {'id': 'leadin', 'desc': 'Number bits leadin', 'default': 10},
+        {'id': 'leadout', 'desc': 'Number bits leadout', 'default': 10},
     )
 
     def __init__(self):
@@ -96,9 +101,9 @@ class Decoder(srd.Decoder):
             return False  # Parity is incorrect
 
     def _calculate_lrc(self):
-        '''Calculate LRC over recieved digits and return it as bit list'''
-        print("Calculateing LRC")
-        # Initialize a list to store the even parity bits
+        '''Calculate LRC over received digits and return it as bit list'''
+        print("Calculating LRC")
+        # Initialise a list to store the even parity bits
         even_parity_bits = [0, 0, 0, 0]
         # Calculate even parity bits for each position
         for i in range(4):
@@ -115,7 +120,7 @@ class Decoder(srd.Decoder):
 
     def _get_num(self):
         '''Get the current digit from bits[] and return it as hex'''
-        # save the bcd number to a list so we can check the LRC
+        # save the BCD number to a list so we can check the LRC
         self.bcd_list.append(self.bits[:4])
         # check the parity and warn if error
         parity = self._check_parity()
@@ -147,7 +152,7 @@ class Decoder(srd.Decoder):
         self.card_decoded = ""
 
     def _update_state(self):
-        '''Update the annotations and bit values after each bit recieved'''
+        '''Update the annotations and bit values after each bit received'''
         if self.bit is not None:
             self.bits.append(self.bit)
             self.put(self.bit_ss, self.samplenum, self.out_ann,
@@ -164,7 +169,8 @@ class Decoder(srd.Decoder):
         LRC = 3
 
         if self.digit_type == Leadin:
-            if len(self.bits) == 10:
+            leadin = self.options['leadin']
+            if len(self.bits) == leadin:
                 ann = [1, [str("Lead in")]]
                 self.put(self.digit_ss, self.samplenum, self.out_ann, ann)
                 # setup to catch digits
@@ -174,7 +180,8 @@ class Decoder(srd.Decoder):
 
         if self.digit_type == Leadout:
             # if the packet is done reset for another one
-            if len(self.bits) == 10:
+            leadout = self.options['leadout']
+            if len(self.bits) == leadout:
                 ann = [1, [str("Lead out")]]
                 self.put(self.digit_ss, self.samplenum, self.out_ann, ann)
                 self.digit_ss = None
@@ -189,7 +196,7 @@ class Decoder(srd.Decoder):
                     self.card_start = 1              # start decoding card data
                     self.card_ss = None              # set start of card data
                 elif digit == "d":
-                    self._digit_ann(7, digit)        # digit type: seperator
+                    self._digit_ann(7, digit)        # digit type: separator
                     self._card_ann(3)                # write last card number
                 elif digit == "f":
                     self._digit_ann(8, digit)          # digit type: end
