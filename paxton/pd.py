@@ -15,10 +15,8 @@
 ## along with this program; if not, see <http://www.gnu.org/licenses/>.
 ##
 
-# TODO 
-# work out and decode switch card number as seen by Net2
-# extend to generic clock and data with selectable polarity?
-# 
+# Added selectable polarity and valid edge to make it more generic but it has 
+# not been thoroughly tested. The defaults are suitable for Paxton readers
 
 import sigrokdecode as srd
 
@@ -52,10 +50,11 @@ class Decoder(srd.Decoder):
         ('begin', 'Begin'),            # 6
         ('separator', 'Separator'),    # 7
         ('end', 'End'),                # 8
+        ('unknown', 'Unknown'),        # 9
     )
     annotation_rows = (
         ('bits', 'Bits', (0,)),
-        ('digits', 'Digits', (1, 2, 5, 6, 7, 8,)),
+        ('digits', 'Digits', (1, 2, 5, 6, 7, 8, 9,)),
         ('cards', 'Card', (3,)),
         ('error', 'Error', (4,)),
     )
@@ -63,6 +62,8 @@ class Decoder(srd.Decoder):
     options = (
         {'id': 'leadin', 'desc': 'Number bits leadin', 'default': 10},
         {'id': 'leadout', 'desc': 'Number bits leadout', 'default': 10},
+        {'id': 'edge', 'desc': 'Data valid on edge', 'default': 'falling', 'values': ('rising', 'falling') },
+        {'id': 'polarity', 'desc': 'Data polarity', 'default': 'inverted', 'values': ('normal', 'inverted') },
     )
 
     def __init__(self):
@@ -88,8 +89,6 @@ class Decoder(srd.Decoder):
     def start(self):
         '''Register output types and verify user supplied decoder values.'''
         self.out_ann = self.register(srd.OUTPUT_ANN)
-        self._active = 0
-        self._inactive = 1
 
     def _check_parity(self):
         '''Count the number of 1s in the 5-bit sequence return True if odd'''
@@ -207,6 +206,8 @@ class Decoder(srd.Decoder):
                     self._digit_ann(2, digit)          # digit type: digit
                     self.card_decoded += str(digit)    # add digit to card num
                     self.card_es = self.samplenum      # increment es
+                else:
+                    self._digit_ann(9, digit)          # digit type: unknown
 
         if self.digit_type == LRC:
             if len(self.bits) == 5:
@@ -219,17 +220,33 @@ class Decoder(srd.Decoder):
                 self.digit_type = Leadout
 
     def decode(self):
-        '''Capture a bit on the clk falling and update on clk rising'''
+        '''Capture a bit on the clk capture edge and update on update edge'''
+        edge = self.options['edge']
+        if edge == 'rising':
+            capture = 1
+            update = 0
+        else:
+            capture = 0
+            update = 1
+
+        polarity = self.options['polarity']
+        if polarity == 'normal':
+            low_bit = 0
+            high_bit = 1
+        else:
+            low_bit = 1
+            high_bit = 0
+
         while True:
             # wait for clk edge
             (clk, dat) = self.wait({0: 'e'})
-            if (clk) == 0:
+            if (clk) == capture:
                 # start new bit
                 self.bit_ss = self.samplenum
-                if (dat) == (self._inactive):
-                    self.bit = 0
-                elif (dat) == (self._active):
-                    self.bit = 1
-            if (clk) == 1:
+                if (dat) == 0:
+                    self.bit = low_bit
+                elif (dat) == 1:
+                    self.bit = high_bit
+            if (clk) == update:
                 # end bit annotation
                 self._update_state()
