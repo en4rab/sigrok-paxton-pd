@@ -1,6 +1,6 @@
 # This folder contains example traces
 
-Ref_Pyramid_Series_Magnetic_Stripe_Data_Format.pdf
+Ref_Pyramid_Series_Magnetic_Stripe_Data_Format.pdf  
 This data-sheet documents the format for clock and data output.
 
 blue-fob-98949188.sr  
